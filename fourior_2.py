@@ -92,12 +92,20 @@ if uploaded_file is not None:
     # ---------------------------------------------------------
     # 5. Inverse Transform and Error Calculation
     # ---------------------------------------------------------
+    # ---------------------------------------------------------
+    # 5. Inverse Transform and Error Calculation
+    # ---------------------------------------------------------
     if st.button("Apply Equalizer & Reconstruct Audio", type="primary"):
         with st.spinner("Reconstructing sound wave..."):
             
             # Compute the Inverse Fast Fourier Transform (IFFT)
             y_recon = np.fft.ifft(Y_modified).real
             
+            # MATH FIX: Clip the amplitudes strictly between -1.0 and 1.0 
+            # to prevent digital audio conversion errors
+            y_recon = np.clip(y_recon, -1.0, 1.0)
+            
+            # Plot the Reconstructed Waveform
             fig_recon, ax_recon = plt.subplots(figsize=(12, 3))
             ax_recon.plot(time_axis, y_recon, color='green', linewidth=0.5)
             ax_recon.set_title(f"Reconstructed Waveform (Multiplier: {gain}x applied to {min_freq}Hz - {max_freq}Hz)")
@@ -107,10 +115,15 @@ if uploaded_file is not None:
             st.pyplot(fig_recon)
             plt.close(fig_recon)
             
+            # MEMORY FIX: Create the buffer, write the file, and REWIND IT
             buffer = io.BytesIO()
-            sf.write(buffer, y_recon, sr, format='WAV')
+            sf.write(buffer, y_recon, sr, format='WAV', subtype='PCM_16')
+            buffer.seek(0) # Rewinds the internal memory tape to the beginning
+            
+            # Play the successfully rewound audio
             st.audio(buffer, format='audio/wav')
             
+            # Calculate the Mean Squared Error (MSE)
             mse_error = np.mean((y - y_recon)**2)
             
             st.markdown("### Error Analysis")
